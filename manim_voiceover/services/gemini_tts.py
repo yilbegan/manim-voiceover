@@ -44,7 +44,7 @@ class GoogleTextToSpeechService(SpeechService):
             credentials_path (str, optional): Path to service account JSON key.
             **kwargs: Additional arguments passed to SpeechService.
         """
-        kwargs["transcription_model"] = kwargs.get("transcription_model", base)
+        kwargs["transcription_model"] = kwargs.get("transcription_model", "base")
 
         super().__init__(**kwargs)
 
