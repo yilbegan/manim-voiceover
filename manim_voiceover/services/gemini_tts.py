@@ -94,9 +94,9 @@ class GoogleTextToSpeechService(SpeechService):
         voice_name = kwargs.get("voice_name", self.voice_name)
         model_name = kwargs.get("model_name", self.model_name)
 
-        text = remove_bookmarks(text)
+        input_text = remove_bookmarks(text)
         input_data = {
-            "input_text": text,
+            "input_text": input_text,
             "service": "google_tts",
             "model": model_name,
             "voice": voice_name,
@@ -108,7 +108,7 @@ class GoogleTextToSpeechService(SpeechService):
 
         cached_result = self.get_cached_result(input_data, base_cache_dir)
         if cached_result is not None:
-            logger.info(f"Using cached voiceover for: '{text[:30]}...'")
+            logger.info(f"Using cached voiceover for: '{input_text[:30]}...'")
             return cached_result
 
         if path is None:
@@ -116,9 +116,11 @@ class GoogleTextToSpeechService(SpeechService):
 
         try:
             if prompt:
-                synthesis_input = texttospeech.SynthesisInput(text=text, prompt=prompt)
+                synthesis_input = texttospeech.SynthesisInput(
+                    text=input_text, prompt=prompt
+                )
             else:
-                synthesis_input = texttospeech.SynthesisInput(text=text)
+                synthesis_input = texttospeech.SynthesisInput(text=input_text)
 
             voice_params = texttospeech.VoiceSelectionParams(
                 language_code=lang, name=voice_name, model_name=model_name
