@@ -1,12 +1,14 @@
-from abc import ABC, abstractmethod
-import typing as t
-import os
-import json
-import sys
 import hashlib
+import json
+import os
+import sys
+import typing as t
+from abc import ABC, abstractmethod
 from pathlib import Path
+
 from manim import config, logger
 from slugify import slugify
+
 from manim_voiceover.defaults import (
     DEFAULT_VOICEOVER_CACHE_DIR,
     DEFAULT_VOICEOVER_CACHE_JSON_FILENAME,
@@ -24,6 +26,10 @@ def timestamps_to_word_boundaries(segments):
     word_boundaries = []
     current_text_offset = 0
     for segment in segments:
+        # Handle cases where 'words' might be missing if word_timestamps=False was used
+        if "words" not in segment:
+            continue
+
         for dict_ in segment["words"]:
             word = dict_["word"]
             word_boundaries.append(
@@ -95,12 +101,33 @@ class SpeechService(ABC):
             transcription_result = self._whisper_model.transcribe(
                 str(Path(self.cache_dir) / original_audio), **self.transcription_kwargs
             )
-            logger.info("Transcription: " + transcription_result.text)
-            word_boundaries = timestamps_to_word_boundaries(
-                transcription_result.segments_to_dicts()
-            )
+
+            # === UPDATED SECTION START ===
+            # Handle both raw Dictionary return (from the updated transcribe method provided)
+            # and Object return (from standard stable-whisper/whisper libraries)
+            if isinstance(transcription_result, dict):
+                transcribed_text = transcription_result["text"]
+                segments = transcription_result["segments"]
+            else:
+                # Fallback/Standard Stable-Whisper Object handling
+                transcribed_text = transcription_result.text
+                if hasattr(transcription_result, "to_dict"):
+                    # stable-whisper 2.x
+                    segments = transcription_result.to_dict()["segments"]
+                elif hasattr(transcription_result, "segments_to_dicts"):
+                    # older stable-whisper
+                    segments = transcription_result.segments_to_dicts()
+                else:
+                    # generic fallback
+                    segments = transcription_result
+            # === UPDATED SECTION END ===
+
+            logger.info("Transcription: " + transcribed_text)
+
+            word_boundaries = timestamps_to_word_boundaries(segments)
+
             dict_["word_boundaries"] = word_boundaries
-            dict_["transcribed_text"] = transcription_result.text
+            dict_["transcribed_text"] = transcribed_text
 
         # Audio callback
         self.audio_callback(original_audio, dict_, **kwargs)
@@ -139,8 +166,8 @@ class SpeechService(ABC):
         if model != self.transcription_model:
             if model is not None:
                 try:
-                    import whisper as __tmp
                     import stable_whisper as whisper
+                    import whisper as __tmp
                 except ImportError:
                     logger.error(
                         'Missing packages. Run `pip install "manim-voiceover[transcribe]"` to be able to transcribe voiceovers.'
