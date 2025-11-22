@@ -4,6 +4,7 @@ from typing import Optional
 
 from manim import logger
 
+from manim_voiceover.helper import remove_bookmarks
 from manim_voiceover.services.base import SpeechService
 
 try:
@@ -93,8 +94,9 @@ class GoogleTextToSpeechService(SpeechService):
         voice_name = kwargs.get("voice_name", self.voice_name)
         model_name = kwargs.get("model_name", self.model_name)
 
+        input_text = remove_bookmarks(text)
         input_data = {
-            "input_text": text,
+            "input_text": input_text,
             "service": "google_tts",
             "model": model_name,
             "voice": voice_name,
